@@ -4,6 +4,11 @@ from torch import nn
 from .snake_linearized import SnakeLinearized
 
 class ConvLayer():
+    """
+    Notable properties: 
+    - (A * B)(x) = (B @ A)(x) = B(A(x))
+    - * and @ are distributive over + 
+    """
     def __init__(self, module: nn.Module=None, weight=None, bias=None, control=False, in_features=None, out_features=None):
         self.weight = None
         self.bias = None
@@ -11,9 +16,14 @@ class ConvLayer():
             self.weight = torch.ones((out_features, in_features, 1))
             self.bias = torch.zeros((out_features,))
         if module is not None:
-            module = nn.utils.remove_weight_norm(module)
+            try: 
+                nn.utils.remove_weight_norm(module)
+            except ValueError: pass
             self.weight = module.weight.detach().clone().cpu()
-            self.bias = module.bias.detach().clone().cpu()
+            if module.bias is not None:
+                self.bias = module.bias.detach().clone().cpu()
+            else: 
+                self.bias = torch.zeros((module.out_channels,))
         if weight is not None:
             self.weight = weight
         if bias is not None:
@@ -40,6 +50,12 @@ class ConvLayer():
         return weight, bias
 
     def __mul__(self, other: ConvLayer | SnakeLinearized):
+        """
+        Sequential composition of ConvLayer
+
+        Note: unlike function composition or matmul, the first operand is applied first 
+        i.e. (A * B)(x) = B(A(x))
+        """
         if type(other) is ConvLayer:
             weight, bias = self._combine_conv1d(
                 self.weight, self.bias, 
@@ -55,6 +71,11 @@ class ConvLayer():
         raise TypeError(f"cannot multiply type ConvLayer by type {type(other)}")
     
     def __imul__(self, other: ConvLayer | SnakeLinearized):
+        """
+        In-place version of __mul__
+
+        Note: A *= B, A(x) is equivalent to B(A(x))
+        """
         if type(other) is ConvLayer:
             self.weight, self.bias = self._combine_conv1d(
                 self.weight, self.bias, 
@@ -68,6 +89,20 @@ class ConvLayer():
             )
             return self
         raise TypeError(f"cannot multiply type ConvLayer by type {type(other)}")
+
+    def __matmul__(self, other: ConvLayer):
+        weight, bias = self._combine_conv1d(
+            other.weight, other.bias, 
+            self.weight, self.bias
+        )
+        return ConvLayer(weight=weight, bias=bias)
+    
+    def __imatmul__(self, other: ConvLayer):
+        self.weight, self.bias = self._combine_conv1d(
+            other.weight, other.bias, 
+            self.weight, self.bias
+        )
+        return self
 
     def __add__(self, other: ConvLayer):
         return ConvLayer(
