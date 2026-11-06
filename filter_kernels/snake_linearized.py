@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from .conv_layer import ConvLayer
 
 class SnakeLinearized(nn.Module):
     def __init__(self, features, module=None, alpha=None, beta=None):
@@ -27,3 +28,10 @@ class SnakeLinearized(nn.Module):
 
     def forward(self, x):
         return x * self.weight + self.bias
+
+    def __matmul__(self, other: ConvLayer):
+        weight, bias = other._combine_conv1d(
+            other.weight, other.bias,
+            torch.diag(self.weight.detach()).unsqueeze(0), self.bias.detach()
+        )
+        return weight, bias

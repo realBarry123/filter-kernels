@@ -3,7 +3,7 @@ import math
 import matplotlib.pyplot as plt
 from filter_kernels.conv_layer import ConvLayer
 
-def test_mult(x):
+def test_comp(x):
     a = ConvLayer(
         weight=torch.randn((3, 2, 7)),
         bias=torch.randn((3,))
@@ -13,7 +13,7 @@ def test_mult(x):
         bias=torch.randn((4,))
     )
 
-    return (a * b)(x) - b(a(x))
+    return (b @ a)(x) - b(a(x))
 
 def test_add(x):
     a = ConvLayer(
@@ -40,8 +40,8 @@ def test_l_distrib(x):
         bias=torch.randn((4,))
     )
 
-    f1 = a * (b + c)
-    f2 = a * b + a * c
+    f1 = (b + c) @ a
+    f2 = b @ a + c @ a
     return f1(x) - f2(x)
 
 def test_r_distrib(x):
@@ -55,16 +55,16 @@ def test_r_distrib(x):
         )
     c = ConvLayer(
         weight=torch.randn((4, 3, 7)),
-        bias=torch.randn((4,))
+        bias=torch.zeros((4,))
     )
 
-    f1 = (a + b) * c
-    f2 = a * c + b * c
+    f1 = c @ (a + b)
+    f2 = c @ a + c @ b
     return f1(x) - f2(x)
 
 if __name__ == "__main__":
     TESTS = [
-        test_mult,
+        test_comp,
         test_add,
         test_l_distrib, 
         test_r_distrib
