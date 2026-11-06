@@ -9,7 +9,7 @@ class ConvLayer():
     - (A * B)(x) = (B @ A)(x) = B(A(x))
     - * and @ are distributive over + 
     """
-    def __init__(self, module: nn.Module=None, weight=None, bias=None, control=False, in_features=None, out_features=None):
+    def __init__(self, module: nn.Module=None, weight=None, bias=None, in_features=None, out_features=None):
         self.weight = None
         self.bias = None
         if in_features is not None and out_features is not None:
@@ -28,9 +28,6 @@ class ConvLayer():
             self.weight = weight
         if bias is not None:
             self.bias = bias
-        if control:
-            self.weight = nn.init.kaiming_uniform_(self.weight)
-            self.bias = torch.zeros_like(self.bias)
     
     def __call__(self, x: torch.Tensor):
         return nn.functional.conv1d(x, self.weight, self.bias, padding=self.weight.shape[-1] - 1)
@@ -116,6 +113,15 @@ class ConvLayer():
     
     def __str__(self):
         return f"ConvLayer(weight.shape={self.weight.shape}, bias.shape={self.bias.shape})"
+
+    @staticmethod
+    def _shuffle(x: torch.Tensor) -> torch.Tensor:
+        rand_ids = torch.randperm(x.nelement())
+        return x.view(-1)[rand_ids].view(t.shape)
+    
+    def shuffle(self):
+        self.weight = self._shuffle(self.weight)
+        self.bias = self._shuffle(self.bias)
         
 
 def virtual_kernel(module: nn.Module, module_type: str) -> ConvLayer:
